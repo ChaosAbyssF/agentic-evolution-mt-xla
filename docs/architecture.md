@@ -7,15 +7,14 @@ training stack.
 
 ```text
 User target latency
-  -> task.yaml
-  -> remote benchmark
+  -> task.yaml + operator_task.yaml
+  -> operator optimization loop
+  -> candidate worth integrating
   -> hotspot inventory + backend map
-  -> choose one optimization object
-  -> local implementation improvement
   -> XLA rewriter -> custom call -> runtime target
   -> build/test
   -> whole-model benchmark
-  -> lineage accept/reject
+  -> accept/reject or fall back to operator loop
 ```
 
 ## Main Subsystems
@@ -42,10 +41,19 @@ User target latency
 - `scripts/collect_op_inventory.sh`
 - `scripts/run_xla_custom_call_checks.sh`
 - `scripts/record_lineage.py`
+- `scripts/operator_preflight.sh`
+- `scripts/operator_correctness_benchmark.sh`
+- `scripts/operator_profile_msys.sh`
+- `scripts/export_msys_report.sh`
+- `scripts/operator_generate_proposal.sh`
+- `scripts/operator_prepare_next_seed.sh`
+- `scripts/operator_record_result.py`
+- `scripts/operator_select_best.sh`
 
 Purpose:
 
-- run baseline and candidate benchmarks
+- run operator and whole-model baselines
+- drive the preflight -> correctness -> profiling -> proposal loop
 - initialize hotspot/backend knowledge
 - validate XLA custom-call integration
 - record accepted and rejected attempts
@@ -57,12 +65,17 @@ Purpose:
 - `knowledge/pattern_db.yaml`
 - `knowledge/error_db.yaml`
 - `knowledge/perf_db.yaml`
+- `memory/semantic_ops.yaml`
+- `memory/baselines.jsonl`
+- `memory/operator_lineage.jsonl`
+- `memory/integration_lineage.jsonl`
 
 Purpose:
 
 - keep the optimization queue grounded in whole-model evidence
 - make backend ownership explicit
 - keep failures and performance signals reusable
+- persist operator semantics, baselines, and iteration history
 
 ### 5. XLA Integration Layer
 
@@ -78,6 +91,20 @@ The critical chain is:
 
 Treat LayerNorm as the onboarding template for new operators.
 
+## Operator Optimization Loop
+
+The operator loop is now a first-class subsystem:
+
+1. preflight environment and task checks
+2. correctness plus local benchmark
+3. targeted MSYS profiling
+4. full MSYS profiling
+5. bottleneck classification
+6. optimization proposal generation
+7. next-seed preparation
+8. iteration result recording
+9. best-version selection after the limit is reached
+
 ## Acceptance Model
 
 A lineage step is accepted only if all are true:
@@ -88,3 +115,6 @@ A lineage step is accepted only if all are true:
 - whole-model latency improves
 
 Everything else is a rejected attempt, even if the standalone kernel is faster.
+
+If the whole-model path does not improve, control returns to the operator loop
+for another local optimization iteration.

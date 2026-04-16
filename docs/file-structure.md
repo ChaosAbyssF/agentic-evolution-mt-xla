@@ -21,6 +21,11 @@ agentic-evolution/
 │   ├── op_inventory.csv
 │   ├── pattern_db.yaml
 │   └── perf_db.yaml
+├── memory/
+│   ├── baselines.jsonl
+│   ├── integration_lineage.jsonl
+│   ├── operator_lineage.jsonl
+│   └── semantic_ops.yaml
 ├── references/
 │   ├── optimization-patterns.md
 │   ├── platform-cuda.md
@@ -32,11 +37,21 @@ agentic-evolution/
 │       └── 2603.24517v1.pdf
 ├── scripts/
 │   ├── collect_op_inventory.sh
+│   ├── export_msys_report.sh
+│   ├── install_skill.sh
+│   ├── operator_correctness_benchmark.sh
+│   ├── operator_generate_proposal.sh
+│   ├── operator_prepare_next_seed.sh
+│   ├── operator_preflight.sh
+│   ├── operator_profile_msys.sh
+│   ├── operator_record_result.py
+│   ├── operator_select_best.sh
 │   ├── record_lineage.py
 │   ├── remote_xla_exec.sh
 │   ├── run_full_model.sh
 │   └── run_xla_custom_call_checks.sh
 ├── templates/
+│   ├── operator_task.yaml
 │   └── task.yaml
 └── artifacts/
 ```
@@ -80,6 +95,15 @@ Working state for:
 - known failures
 - reusable performance signals
 
+### `memory/`
+
+Persistent facts and iteration history for:
+
+- semantic operators
+- user-provided and measured baselines
+- operator optimization lineage
+- XLA integration lineage
+
 ### `references/`
 
 Stable reference material the skill depends on:
@@ -98,7 +122,10 @@ Executable harness pieces. These are the operational heart of the project.
 
 ### `templates/`
 
-Input templates for a real optimization task. `task.yaml` is the primary one.
+Input templates for a real optimization task.
+
+- `task.yaml`: whole-model and XLA integration task
+- `operator_task.yaml`: operator optimization loop task
 
 ### `artifacts/`
 

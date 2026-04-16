@@ -24,6 +24,32 @@ But it changes the objective:
 - Do optimize the real TF2.15 inference path
 - Do integrate wins into XLA through **custom calls**
 
+## Operator Optimization Loop
+
+Before any XLA integration, run the operator optimization loop as the primary
+workflow:
+
+1. `Preflight`
+2. `Correctness + Benchmark`
+3. `Targeted MSYS profiling`
+4. `Full MSYS profiling`
+5. Bottleneck diagnosis
+6. `optimization_proposal.md`
+7. Next seed manifest
+8. Record iteration result
+9. Select the best version when the iteration limit is reached
+
+Use these scripts:
+
+- `scripts/operator_preflight.sh`
+- `scripts/operator_correctness_benchmark.sh`
+- `scripts/operator_profile_msys.sh`
+- `scripts/export_msys_report.sh`
+- `scripts/operator_generate_proposal.sh`
+- `scripts/operator_prepare_next_seed.sh`
+- `scripts/operator_record_result.py`
+- `scripts/operator_select_best.sh`
+
 ## Use This Skill When
 
 - The target environment is Moore Threads MUSA
@@ -132,6 +158,9 @@ For each iteration, choose exactly one primary optimization object:
 
 Never mix multiple primary changes in the same accepted step. Keep attribution
 clean enough that whole-model regressions remain explainable.
+
+For operator work, do not skip the profiling stages. `msys` profiling is the
+core evidence source for local optimization decisions.
 
 ### 4. Integrate Through XLA Custom Call
 
@@ -244,6 +273,13 @@ Knowledge files should live under:
 - `knowledge/pattern_db.yaml`
 - `knowledge/error_db.yaml`
 - `knowledge/perf_db.yaml`
+
+Operator loop state should live under:
+
+- `memory/semantic_ops.yaml`
+- `memory/baselines.jsonl`
+- `memory/operator_lineage.jsonl`
+- `memory/integration_lineage.jsonl`
 
 ## Default Decision Rules
 

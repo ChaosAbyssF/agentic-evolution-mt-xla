@@ -1,4 +1,6 @@
 artifacts/run_*/
+artifacts/operator_runs/
+artifacts/final_selection/
 scripts/__pycache__/
 *.pyc
 lineage.jsonl

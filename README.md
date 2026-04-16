@@ -1,15 +1,32 @@
 # 面向 TF2.15 + MUSA + XLA Custom Call 的 Agentic Evolution
 
-这个项目把 `agentic-evolution` skill 封装成了一套可直接供 Codex 使用的完整工作流，目标在摩尔线程 MUSA 平台上，通过 XLA custom call 把优化后的算子接入 TensorFlow 2.15 的真实执行链路，从而降低整网推理时延。
+这个项目把 `agentic-evolution` skill 封装成了一套可直接供 Codex 使用的完整工作流，目标是在摩尔线程 MUSA 平台上，通过 **算子优化闭环 + XLA custom call 接入闭环** 两段流程，把优化后的算子接入 TensorFlow 2.15 的真实执行链路，从而降低整网推理时延。
 
-## 具体过程
+## 工作流总览
 
-1. 在远端容器中测量整网 baseline
-2. 识别热点算子及其当前后端归属
-3. 每次只优化一个目标
-4. 通过 XLA custom call 把优化实现接进整网
-5. 重建、验证，并重新跑整网 benchmark
-6. 只保留真正降低端到端时延的尝试
+### 闭环 A：算子优化闭环
+
+这部分严格按固定步骤运行：
+
+1. `Preflight` 环境检查
+2. `Correctness + Benchmark`
+3. 通过则进入 `Targeted MSYS profiling`
+4. 再进入 `Full MSYS profiling`
+5. 根据统计结果做瓶颈分类诊断
+6. 生成 `optimization_proposal.md`
+7. 产出下一版种子 `iter_v0 -> iter_v1 -> iter_v2`
+8. 记录本轮结果：`positive / negative / rejected`
+9. 达到上限后选出最佳版本，生成 `final_summary.md` 和 `run_manifest_index.txt`
+
+### 闭环 B：XLA 接入闭环
+
+只有当算子优化闭环产出了值得接入的候选后，才进入：
+
+1. HLO rewriter 接入
+2. custom call bridge 接入
+3. runtime target 命中验证
+4. whole-model benchmark
+5. 若整网无收益，则回退到闭环 A 继续优化
 
 ## 项目内容
 
@@ -17,9 +34,67 @@
 - 远端执行与 benchmark 脚本：[scripts/](./scripts)
 - XLA custom call 接入说明：[references/](./references)
 - 项目文档与目录说明：[docs/](./docs)
-- 任务模板与知识库骨架：[templates/](./templates)、[knowledge/](./knowledge)
+- 任务模板与知识库骨架：[templates/](./templates)、[knowledge/](./knowledge)、[memory/](./memory)
 - 示例 benchmark 资源：[examples/](./examples)
 - 研究参考材料：[research/](./research)
+
+## 如何下载这个项目
+
+直接克隆仓库：
+
+```bash
+git clone https://github.com/Aloyshaaaa/-agentic-evolution-musa.git
+cd agentic-evolution-musa
+```
+
+如果你使用 SSH：
+
+```bash
+git clone git@github.com:Aloyshaaaa/-agentic-evolution-musa.git
+cd agentic-evolution-musa
+```
+
+## 如何安装成 Codex skill
+
+推荐安装方式是用项目自带脚本创建软链接：
+
+```bash
+./scripts/install_skill.sh
+```
+
+默认会把当前项目链接到：
+
+```text
+~/.codex/skills/agentic-evolution
+```
+
+如果你想安装到别的名字：
+
+```bash
+./scripts/install_skill.sh ~/.codex/skills/agentic-evolution-musa
+```
+
+安装后如果 Codex 已经在运行，重启一次 Codex 让 skill 列表刷新。
+
+## 如何和 Codex 对话来调用这个 skill
+
+推荐用法是直接在对话里明确提到 skill 名和任务目标，例如：
+
+```text
+使用 agentic-evolution skill，针对 layernorm_fwd 做同语义 MUSA 算子优化，并在通过后接入 XLA custom call，最后验证整网时延是否下降。
+```
+
+或者：
+
+```text
+用 agentic-evolution 帮我做 attention_qk_softmax_pv 的算子优化。先跑 preflight、correctness、msys targeted/full profiling，再给出 proposal，最后如果局部性能达标就接入 XLA。
+```
+
+你也可以明确要求它只跑某一段闭环，例如：
+
+```text
+使用 agentic-evolution skill，只执行算子优化闭环，不做 XLA 接入。输出 targeted/full msys profiling、瓶颈诊断和下一版 proposal。
+```
 
 ## 用户需要自己提供的内容
 
@@ -48,6 +123,9 @@
   - build 命令
   - rewriter test 命令
   - custom call test 命令
+  - PTX 语义说明
+  - 算子优化 seed 路径
+  - operator correctness / benchmark / msys profiling / export 命令
 
 推荐做法：
 
@@ -70,33 +148,82 @@
    export AE_REMOTE_ENV_FILE=./config/remote.env
    ```
 
-2. 再把真实任务命令填进 [templates/task.yaml](./templates/task.yaml)
-3. 跑一次 baseline：
+2. 再把真实任务命令填进：
+   - [templates/task.yaml](./templates/task.yaml)
+   - [templates/operator_task.yaml](./templates/operator_task.yaml)
+3. 先跑算子优化闭环的 preflight：
+
+   ```bash
+   ./scripts/operator_preflight.sh ./templates/operator_task.yaml
+   ```
+
+4. 跑一次算子 correctness + benchmark：
+
+   ```bash
+   ./scripts/operator_correctness_benchmark.sh ./templates/operator_task.yaml
+   ```
+
+5. 跑 targeted profiling：
+
+   ```bash
+   ./scripts/operator_profile_msys.sh ./templates/operator_task.yaml targeted
+   ```
+
+6. 跑 full profiling：
+
+   ```bash
+   ./scripts/operator_profile_msys.sh ./templates/operator_task.yaml full
+   ```
+
+7. 导出 MSYS 报告并生成 proposal：
+
+   ```bash
+   ./scripts/export_msys_report.sh ./templates/operator_task.yaml
+   ./scripts/operator_generate_proposal.sh ./templates/operator_task.yaml
+   ```
+
+8. 产出下一版 seed manifest：
+
+   ```bash
+   ./scripts/operator_prepare_next_seed.sh ./templates/operator_task.yaml iter_v1
+   ```
+
+9. 如果局部结果达标，再跑整网 baseline：
 
    ```bash
    AE_RUN_LABEL=baseline ./scripts/run_full_model.sh ./templates/task.yaml
    ```
 
-4. 初始化热点和后端映射：
+10. 初始化热点和后端映射：
 
    ```bash
    ./scripts/collect_op_inventory.sh ./templates/task.yaml
    ```
 
-5. 跑 XLA custom call 的 build/test 检查：
+11. 跑 XLA custom call 的 build/test 检查：
 
    ```bash
    ./scripts/run_xla_custom_call_checks.sh ./templates/task.yaml
    ```
 
-6. 选择一个热点，按 LayerNorm 风格的 custom call 路径接入，然后重跑整网并记录结果：
+12. 选择一个热点，按 LayerNorm 风格的 custom call 路径接入，然后重跑整网并记录结果：
 
    ```bash
    AE_RUN_LABEL=candidate ./scripts/run_full_model.sh ./templates/task.yaml
-   python3 ./scripts/record_lineage.py \
+    python3 ./scripts/record_lineage.py \
      --target-op layernorm \
      --decision accepted \
      --summary "示例 lineage 记录"
+   ```
+
+13. 同时记录算子优化迭代：
+
+   ```bash
+   python3 ./scripts/operator_record_result.py \
+     --semantic-op-id layernorm_fwd \
+     --iteration-id iter_v1 \
+     --decision positive \
+     --summary "Targeted/full MSYS profiling shows the next seed is worth integrating"
    ```
 
 ## 核心规则
@@ -106,6 +233,14 @@
 - correctness 通过
 - XLA custom call 路径真正命中
 - 整网时延下降
+
+算子优化闭环中的核心规则同样固定：
+
+- 不做 preflight，不进入 correctness/benchmark
+- correctness 未通过，不进入 profiling
+- 没有 targeted + full profiling，就不生成 proposal
+- 没有 proposal 和下一版 seed，就不继续盲目迭代
+- 整网无收益，则回退到算子优化闭环继续优化
 
 ## 建议继续阅读
 
