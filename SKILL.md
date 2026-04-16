@@ -50,6 +50,9 @@ Use these scripts:
 - `scripts/operator_record_result.py`
 - `scripts/operator_select_best.sh`
 
+The profiling workflow is fixed, but the profiling parameters are model-specific.
+Fill them in `templates/operator_task.yaml` instead of editing the scripts.
+
 ## Use This Skill When
 
 - The target environment is Moore Threads MUSA

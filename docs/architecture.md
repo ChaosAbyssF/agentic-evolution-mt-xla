@@ -105,6 +105,12 @@ The operator loop is now a first-class subsystem:
 8. iteration result recording
 9. best-version selection after the limit is reached
 
+Important constraint:
+
+- the loop stages are stable
+- the MSYS profiling parameters are model-specific
+- model-specific changes belong in `templates/operator_task.yaml`, not in the scripts
+
 ## Acceptance Model
 
 A lineage step is accepted only if all are true:

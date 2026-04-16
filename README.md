@@ -96,6 +96,23 @@ cd agentic-evolution-musa
 使用 agentic-evolution skill，只执行算子优化闭环，不做 XLA 接入。输出 targeted/full msys profiling、瓶颈诊断和下一版 proposal。
 ```
 
+这里有一个重要约束：
+
+- `msys` 的**流程**是固定的
+- `msys` 的**具体参数**会随着模型变化
+
+所以项目里不会把 profiling 命令写死成一个全局真值，而是要求你在
+`templates/operator_task.yaml` 里填写模型相关参数，例如：
+
+- `operator_profile_workdir`
+- `operator_profile_duration_sec`
+- `operator_profile_target`
+- `operator_profile_targeted_report_prefix`
+- `operator_profile_full_report_prefix`
+- `operator_profile_run_command`
+- `operator_profile_stats_reports`
+- `operator_profile_export_prefix`
+
 ## 用户需要自己提供的内容
 
 这个项目不再硬编码任何远端用户名、主机、密码、容器名或工作区路径。你需要自己提供：
@@ -125,7 +142,15 @@ cd agentic-evolution-musa
   - custom call test 命令
   - PTX 语义说明
   - 算子优化 seed 路径
-  - operator correctness / benchmark / msys profiling / export 命令
+  - operator correctness / benchmark 命令
+  - operator profiling 参数
+    - profiling workdir
+    - duration
+    - target
+    - report prefix
+    - run command
+    - stats reports
+    - export prefix
 
 推荐做法：
 
@@ -241,6 +266,12 @@ cd agentic-evolution-musa
 - 没有 targeted + full profiling，就不生成 proposal
 - 没有 proposal 和下一版 seed，就不继续盲目迭代
 - 整网无收益，则回退到算子优化闭环继续优化
+
+也就是说：
+
+- 不同模型需要改 `operator_task.yaml` 里的 profiling 参数
+- 不需要改脚本本身
+- 不需要重写整条 `msys` 命令
 
 ## 建议继续阅读
 
