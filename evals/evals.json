@@ -1,0 +1,24 @@
+{
+  "skill_name": "agentic-evolution",
+  "description": "Test prompts for evaluating the TF2.15 + MUSA + XLA custom-call workflow",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use agentic evolution to reduce TF2.15 whole-model inference latency on MUSA. The optimized operator must be integrated into XLA through a custom call and validated in the user-provided target container.",
+      "expected_output": "Run baseline, collect hotspots, choose one target, wire it through LayerNorm-style XLA custom-call integration, and accept only if whole-model latency improves in the user-provided environment.",
+      "files": ["templates/task.yaml", "references/xla-custom-call-flow.md"]
+    },
+    {
+      "id": 2,
+      "prompt": "A hotspot operator already has a faster local implementation, but the model did not speed up. Use this skill to diagnose the XLA custom-call path and explain what still needs to be integrated.",
+      "expected_output": "Check rewriter, custom-call bridge, runtime registration, and whole-model benchmark path before claiming success.",
+      "files": ["references/xla-custom-call-flow.md"]
+    },
+    {
+      "id": 3,
+      "prompt": "Set up the first optimization iteration for a new hotspot using the LayerNorm example as the template and record the attempt in lineage.jsonl.",
+      "expected_output": "Prepare the baseline, initialize knowledge files, run XLA custom-call checks, and append a lineage record with accept/reject status.",
+      "files": ["templates/task.yaml", "knowledge/op_inventory.csv", "knowledge/backend_map.csv"]
+    }
+  ]
+}

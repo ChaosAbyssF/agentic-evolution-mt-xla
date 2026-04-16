@@ -1,0 +1,6 @@
+artifacts/run_*/
+scripts/__pycache__/
+*.pyc
+lineage.jsonl
+.zread/
+config/remote.env
