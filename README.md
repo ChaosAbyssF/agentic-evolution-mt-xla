@@ -96,22 +96,6 @@ cd agentic-evolution-musa
 使用 agentic-evolution skill，只执行算子优化闭环，不做 XLA 接入。输出 targeted/full msys profiling、瓶颈诊断和下一版 proposal。
 ```
 
-这里有一个重要约束：
-
-- `msys` 的**流程**是固定的
-- `msys` 的**具体参数**会随着模型变化
-
-所以项目里不会把 profiling 命令写死成一个全局真值，而是要求你在
-`templates/operator_task.yaml` 里填写模型相关参数，例如：
-
-- `operator_profile_workdir`
-- `operator_profile_duration_sec`
-- `operator_profile_target`
-- `operator_profile_targeted_report_prefix`
-- `operator_profile_full_report_prefix`
-- `operator_profile_run_command`
-- `operator_profile_stats_reports`
-- `operator_profile_export_prefix`
 
 ## 用户需要自己提供的内容
 
@@ -176,102 +160,8 @@ cd agentic-evolution-musa
 2. 再把真实任务命令填进：
    - [templates/task.yaml](./templates/task.yaml)
    - [templates/operator_task.yaml](./templates/operator_task.yaml)
-3. 先跑算子优化闭环的 preflight：
+3. 调用skill
 
-   ```bash
-   ./scripts/operator_preflight.sh ./templates/operator_task.yaml
-   ```
-
-4. 跑一次算子 correctness + benchmark：
-
-   ```bash
-   ./scripts/operator_correctness_benchmark.sh ./templates/operator_task.yaml
-   ```
-
-5. 跑 targeted profiling：
-
-   ```bash
-   ./scripts/operator_profile_msys.sh ./templates/operator_task.yaml targeted
-   ```
-
-6. 跑 full profiling：
-
-   ```bash
-   ./scripts/operator_profile_msys.sh ./templates/operator_task.yaml full
-   ```
-
-7. 导出 MSYS 报告并生成 proposal：
-
-   ```bash
-   ./scripts/export_msys_report.sh ./templates/operator_task.yaml
-   ./scripts/operator_generate_proposal.sh ./templates/operator_task.yaml
-   ```
-
-8. 产出下一版 seed manifest：
-
-   ```bash
-   ./scripts/operator_prepare_next_seed.sh ./templates/operator_task.yaml iter_v1
-   ```
-
-9. 如果局部结果达标，再跑整网 baseline：
-
-   ```bash
-   AE_RUN_LABEL=baseline ./scripts/run_full_model.sh ./templates/task.yaml
-   ```
-
-10. 初始化热点和后端映射：
-
-   ```bash
-   ./scripts/collect_op_inventory.sh ./templates/task.yaml
-   ```
-
-11. 跑 XLA custom call 的 build/test 检查：
-
-   ```bash
-   ./scripts/run_xla_custom_call_checks.sh ./templates/task.yaml
-   ```
-
-12. 选择一个热点，按 LayerNorm 风格的 custom call 路径接入，然后重跑整网并记录结果：
-
-   ```bash
-   AE_RUN_LABEL=candidate ./scripts/run_full_model.sh ./templates/task.yaml
-    python3 ./scripts/record_lineage.py \
-     --target-op layernorm \
-     --decision accepted \
-     --summary "示例 lineage 记录"
-   ```
-
-13. 同时记录算子优化迭代：
-
-   ```bash
-   python3 ./scripts/operator_record_result.py \
-     --semantic-op-id layernorm_fwd \
-     --iteration-id iter_v1 \
-     --decision positive \
-     --summary "Targeted/full MSYS profiling shows the next seed is worth integrating"
-   ```
-
-## 核心规则
-
-单算子更快并不够。一个 candidate 只有在同时满足下面条件时才算成功：
-
-- correctness 通过
-- XLA custom call 路径真正命中
-- 整网时延下降
-
-算子优化闭环中的核心规则同样固定：
-
-- 不做 preflight，不进入 correctness/benchmark
-- correctness 未通过，不进入 profiling
-- 没有 targeted + full profiling，就不生成 proposal
-- 没有 proposal 和下一版 seed，就不继续盲目迭代
-- 整网无收益，则回退到算子优化闭环继续优化
-
-也就是说：
-
-- 不同模型需要改 `operator_task.yaml` 里的 profiling 参数
-- 不需要改脚本本身
-- 不需要重写整条 `msys` 命令
 
 ## 建议继续阅读
 
