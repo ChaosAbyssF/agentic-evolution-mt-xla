@@ -1,0 +1,5 @@
+errors:
+  - match: "Cannot find the Xla custom call handler"
+    action: "Verify target registration, runtime linkage, and BUILD deps."
+  - match: "correctness"
+    action: "Reject the candidate and debug correctness before measuring latency."
