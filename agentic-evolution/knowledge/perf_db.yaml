@@ -1,5 +1,0 @@
-signals:
-  - name: local_gain_only
-    action: "If standalone speedup does not reduce whole-model latency, check whether XLA still uses the old lowering."
-  - name: no_custom_call_hit
-    action: "Inspect the rewriter and runtime registration path before further kernel tuning."

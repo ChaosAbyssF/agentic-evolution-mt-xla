@@ -1,7 +1,0 @@
-patterns:
-  - name: runtime_overhead
-    priority: 1
-    guidance: "Check layout conversions, copies, sync points, and fallback paths before writing new kernels."
-  - name: xla_custom_call_template
-    priority: 2
-    guidance: "Use the LayerNorm custom call flow as the default onboarding template for new hotspots."
